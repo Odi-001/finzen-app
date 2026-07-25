@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>FinZen</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FinZen">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .phone {
+      width: 100%;
+      max-width: 390px;
+      height: 100vh;
+      background: #f9fafb;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .status-bar {
+      padding: 10px 20px 5px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #1f2937;
+    }
+    .screen {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px 20px 20px;
+      display: none;
+    }
+    .screen.active { display: block; }
+    .nav-bar {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 10px 0 20px;
+      background: #fff;
+      border-top: 1px solid #e5e7eb;
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 10px;
+      color: #6b7280;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .nav-item.active { color: #3b82f6; }
+    .nav-icon { font-size: 22px; margin-bottom: 2px; }
+    .fab {
+      width: 56px; height: 56px;
+      background: #3b82f6;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 28px;
+      box-shadow: 0 4px 10px rgba(59,130,246,0.4);
+      margin-top: -28px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .fab:active { transform: scale(0.95); }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .row { display: flex; justify-content: space-between; align-items: center; }
+    .saldo-total {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: #fff;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .saldo-cifra { font-size: 32px; font-weight: bold; }
+    .summary-cards { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .summary-card {
+      flex: 1; min-width: 80px; background: #fff; border-radius: 14px; padding: 14px;
+    }
+    .progress-bar {
+      height: 6px; background: #e5e7eb; border-radius: 3px; margin-top: 6px;
+    }
+    .progress-fill { height: 100%; border-radius: 3px; }
+    .tx-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid #f3f4f6; cursor: pointer;
+    }
+    .category-dot {
+      width: 36px; height: 36px; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; margin-right: 12px;
+      font-size: 18px; color: #fff;
+    }
+    .modal {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4); display: none; justify-content: flex-end;
+      z-index: 10;
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: #fff; width: 100%; max-height: 90%; border-radius: 30px 30px 0 0;
+      padding: 20px; overflow-y: auto;
+    }
+    input, select, button {
+      font-family: inherit; outline: none;
+    }
+    .btn {
+      background: #3b82f6; color: #fff; border: none; padding: 12px 20px;
+      border-radius: 12px; font-weight: 600; cursor: pointer; width: 100%;
+    }
+    .chip {
+      background: #e5e7eb; padding: 6px 12px; border-radius: 20px; margin: 4px;
+      display: inline-block; cursor: pointer; font-size: 13px;
+    }
+    .chip.selected { background: #3b82f6; color: #fff; }
+    .donut-container { display: flex; justify-content: center; align-items: center; margin: 10px 0; }
+    canvas { max-width: 150px; }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .investment-item {
+      border-left: 4px solid #10b981;
+      padding-left: 12px;
+    }
+    .negative { color: #ef4444; }
+    .positive { color: #10b981; }
+  </style>
+</head>
+<body>
+<div class="phone" id="app">
+  <div class="status-bar"><span>9:41</span><span>📶 🔋 85%</span></div>
+
+  <!-- Dashboard -->
+  <div class="screen active" id="dashboard">
+    <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+      <span style="font-weight:600;">👋 Hola, Usuario</span>
+      <span>🔔</span>
+    </div>
+    <div class="saldo-total">
+      <div style="font-size:14px; opacity:0.9;">Patrimonio neto</div>
+      <div class="saldo-cifra" id="totalBalance">$12,450.00</div>
+      <div style="font-size:12px; margin-top:4px;" id="balanceTrend">+8% vs mes pasado</div>
+    </div>
+    <div class="card" style="margin-bottom:15px;">
+      <div style="font-weight:600; margin-bottom:10px;">💼 Mi dinero</div>
+      <div class="row" style="margin-bottom:8px;">
+        <span>💵 Efectivo</span>
+        <span style="font-weight:bold;" id="cashBalance">$5,000.00</span>
+      </div>
+      <div class="row" style="margin-bottom:8px;">
+        <span>🏦 Cuentas de banco</span>
+        <span style="font-weight:bold;" id="bankBalance">$12,000.00</span>
+      </div>
+      <div class="row" style="margin-bottom:8px;">
+        <span>📈 Inversiones</span>
+        <span style="font-weight:bold; color:#10b981;" id="investBalance">$5,000.00</span>
+      </div>
+      <div class="row">
+        <span>💳 Deuda tarjeta crédito</span>
+        <span style="font-weight:bold; color:#ef4444;" id="creditDebt">-$3,200.00</span>
+      </div>
+    </div>
+    <div class="summary-cards">
+      <div class="summary-card">
+        <div style="color:#ef4444;">📉 Gastos</div>
+        <div style="font-weight:bold;" id="monthExpenses">$1,850.00</div>
+      </div>
+      <div class="summary-card">
+        <div style="color:#10b981;">📈 Ingresos</div>
+        <div style="font-weight:bold;" id="monthIncome">$2,200.00</div>
+      </div>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-weight:600; margin-bottom:8px;">Gastos por categoría</div>
+      <div class="donut-container">
+        <canvas id="donutChart" width="150" height="150"></canvas>
+      </div>
+      <div id="categoryLegend" style="font-size:12px; text-align:left; padding:0 10px;"></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:600; margin-bottom:8px;">Presupuestos</div>
+      <div id="budgetListDashboard"></div>
+    </div>
+  </div>
+
+  <!-- Transacciones -->
+  <div class="screen" id="transactions">
+    <h3 style="margin-bottom:15px;">Movimientos</h3>
+    <div style="display:flex; gap:8px; margin-bottom:15px; overflow-x:auto;">
+      <span class="chip selected filter-chip" data-filter="month">Este mes</span>
+      <span class="chip filter-chip" data-filter="week">Semana</span>
+      <span class="chip filter-chip" data-filter="today">Hoy</span>
+    </div>
+    <div id="transactionList"></div>
+  </div>
+
+  <!-- Cuentas -->
+  <div class="screen" id="accounts">
+    <h3 style="margin-bottom:15px;">Mis Cuentas</h3>
+    <div id="accountList"></div>
+  </div>
+
+  <!-- Inversiones -->
+  <div class="screen" id="investments">
+    <h3 style="margin-bottom:15px;">📈 Inversiones</h3>
+    <div id="investmentList"></div>
+  </div>
+
+  <!-- Más -->
+  <div class="screen" id="more">
+    <h3 style="margin-bottom:20px;">Más opciones</h3>
+    <div class="card" style="padding:5px 0;">
+      <div class="tx-row" onclick="alert('Funcionalidad en desarrollo')"><span>👤 Mi perfil</span><span>›</span></div>
+      <div class="tx-row" onclick="alert('Funcionalidad en desarrollo')"><span>🏷️ Categorías y etiquetas</span><span>›</span></div>
+      <div class="tx-row" onclick="alert('Funcionalidad en desarrollo')"><span>🎯 Metas de ahorro</span><span>›</span></div>
+      <div class="tx-row" onclick="alert('Funcionalidad en desarrollo')"><span>📅 Calendario financiero</span><span>›</span></div>
+      <div class="tx-row" onclick="alert('Funcionalidad en desarrollo')"><span>📊 Informes y exportación</span><span>›</span></div>
+      <div class="tx-row" onclick="alert('Funcionalidad en desarrollo')"><span>⚙️ Configuración</span><span>›</span></div>
+      <div class="tx-row" onclick="resetData()"><span>🔄 Reiniciar datos demo</span><span>›</span></div>
+    </div>
+  </div>
+
+  <!-- Modal Añadir Transacción -->
+  <div class="modal" id="addModal">
+    <div class="modal-content fade-in">
+      <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+        <h3>Nuevo movimiento</h3>
+        <span style="font-size:24px; cursor:pointer;" onclick="closeModal()">✕</span>
+      </div>
+      <div style="display:flex; gap:8px; margin-bottom:15px;">
+        <span class="chip selected type-chip" data-type="expense">Gasto</span>
+        <span class="chip type-chip" data-type="income">Ingreso</span>
+        <span class="chip type-chip" data-type="transfer">Transferencia</span>
+      </div>
+      <input type="text" id="amountInput" placeholder="0.00" style="font-size:28px; width:100%; border:none; border-bottom:2px solid #e5e7eb; padding:10px 0; margin-bottom:10px;" inputmode="decimal">
+      <div style="display:flex; gap:8px; margin-bottom:15px;" id="quickCategories"></div>
+      <div style="margin-bottom:10px;">
+        <label id="accountLabel">Cuenta:</label>
+        <div id="accountChips" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
+      </div>
+      <div id="transferDestContainer" style="display:none; margin-bottom:10px;">
+        <label>Cuenta destino:</label>
+        <div id="destAccountChips" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label>Fecha: <input type="date" id="txDate" style="border:1px solid #e5e7eb; border-radius:8px; padding:6px;"></label>
+      </div>
+      <input type="text" id="txNote" placeholder="Nota..." style="width:100%; border:1px solid #e5e7eb; border-radius:8px; padding:10px; margin-bottom:15px;">
+      <button class="btn" onclick="saveTransaction()">Guardar</button>
+    </div>
+  </div>
+
+  <!-- Navbar -->
+  <div class="nav-bar">
+    <div class="nav-item active" data-tab="dashboard"><span class="nav-icon">🏠</span><span>Inicio</span></div>
+    <div class="nav-item" data-tab="transactions"><span class="nav-icon">📋</span><span>Transacc.</span></div>
+    <div class="fab" id="fabAdd">+</div>
+    <div class="nav-item" data-tab="accounts"><span class="nav-icon">🏦</span><span>Cuentas</span></div>
+    <div class="nav-item" data-tab="investments"><span class="nav-icon">📈</span><span>Inversión</span></div>
+    <div class="nav-item" data-tab="more"><span class="nav-icon">⋯</span><span>Más</span></div>
+  </div>
+</div>
+
+<script>
+  // Registro del service worker (para funcionamiento offline)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        console.log('SW registrado');
+      }).catch(err => console.log('Error SW', err));
+    });
+  }
+
+  // ============ DATOS INICIALES ============
+  const defaultAccounts = [
+    { id: 1, name: 'Efectivo', type: 'cash', balance: 5000, currency: 'MXN' },
+    { id: 2, name: 'BBVA Débito', type: 'checking', balance: 12000, currency: 'MXN' },
+    { id: 3, name: 'Santander Crédito', type: 'credit_card', balance: -3200, credit_limit: 20000, cut_date: 10, due_date: 25 },
+    { id: 4, name: 'Ahorro Meta Viaje', type: 'savings', balance: 1500, currency: 'MXN' },
+    { id: 5, name: 'Inversión Bolsa', type: 'investment', balance: 5000, currency: 'MXN' }
+  ];
+
+  const investments = [
+    { id: 101, name: 'Apple Inc.', type: 'Acción', shares: 10, buyPrice: 150.00, currentPrice: 175.00, accountId: 5 },
+    { id: 102, name: 'ETF S&P 500', type: 'ETF', shares: 25, buyPrice: 80.00, currentPrice: 92.50, accountId: 5 },
+    { id: 103, name: 'Bono Gobierno MX', type: 'Bono', shares: 5, buyPrice: 1000.00, currentPrice: 1020.00, accountId: 5 },
+  ];
+
+  const defaultCategories = [
+    { id: 1, name: 'Alimentación', type: 'expense', color: '#ef4444', icon: '🍕' },
+    { id: 2, name: 'Transporte', type: 'expense', color: '#f59e0b', icon: '🚗' },
+    { id: 3, name: 'Vivienda', type: 'expense', color: '#8b5cf6', icon: '🏠' },
+    { id: 4, name: 'Ocio', type: 'expense', color: '#ec4899', icon: '🎉' },
+    { id: 5, name: 'Salud', type: 'expense', color: '#10b981', icon: '💊' },
+    { id: 6, name: 'Salario', type: 'income', color: '#10b981', icon: '💵' },
+    { id: 7, name: 'Freelance', type: 'income', color: '#3b82f6', icon: '💻' },
+    { id: 8, name: 'Rendimiento inversión', type: 'income', color: '#f59e0b', icon: '📈' }
+  ];
+
+  let transactions = [
+    { id: 1, type: 'expense', amount: 250, categoryId: 1, accountId: 2, date: '2026-07-24', note: 'Supermercado' },
+    { id: 2, type: 'expense', amount: 45, categoryId: 2, accountId: 1, date: '2026-07-24', note: 'Gasolina' },
+    { id: 3, type: 'income', amount: 1500, categoryId: 6, accountId: 2, date: '2026-07-15', note: 'Quincena' },
+    { id: 4, type: 'expense', amount: 320, categoryId: 4, accountId: 3, date: '2026-07-22', note: 'Cine y cena' },
+  ];
+
+  let budgets = [
+    { id: 1, name: 'Comida', amount: 4000, categoryId: 1 },
+    { id: 2, name: 'Ocio', amount: 2000, categoryId: 4 }
+  ];
+
+  let currentTab = 'dashboard';
+  let selectedType = 'expense';
+  let selectedCategoryId = 1;
+  let selectedAccountId = 2;
+  let selectedDestAccountId = 1;
+  let currentFilter = 'month';
+
+  function formatMoney(amount) {
+    const abs = Math.abs(amount);
+    return (amount < 0 ? '-' : '') + '$' + abs.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+  }
+
+  function getMonthExpenses() {
+    const now = new Date();
+    return transactions.filter(t => t.type === 'expense' && new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear())
+      .reduce((sum, t) => sum + t.amount, 0);
+  }
+
+  function getMonthIncome() {
+    const now = new Date();
+    return transactions.filter(t => t.type === 'income' && new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear())
+      .reduce((sum, t) => sum + t.amount, 0);
+  }
+
+  function getTotalBalance() {
+    const assets = defaultAccounts.filter(a => a.type !== 'credit_card').reduce((s, a) => s + a.balance, 0);
+    const liabilities = defaultAccounts.filter(a => a.type === 'credit_card').reduce((s, a) => s + a.balance, 0);
+    return assets + liabilities;
+  }
+
+  function getCategoryById(id) {
+    return defaultCategories.find(c => c.id === id) || { name: 'Sin categoría', color: '#ccc', icon: '❓' };
+  }
+
+  function getCashBalance() {
+    return defaultAccounts.filter(a => a.type === 'cash').reduce((s, a) => s + a.balance, 0);
+  }
+  function getBankBalance() {
+    return defaultAccounts.filter(a => a.type === 'checking' || a.type === 'savings').reduce((s, a) => s + a.balance, 0);
+  }
+  function getInvestBalance() {
+    return defaultAccounts.filter(a => a.type === 'investment').reduce((s, a) => s + a.balance, 0);
+  }
+  function getCreditDebt() {
+    return defaultAccounts.filter(a => a.type === 'credit_card').reduce((s, a) => s + a.balance, 0);
+  }
+
+  function refreshInvestmentPrices() {
+    investments.forEach(inv => {
+      const change = (Math.random() * 4 - 2) / 100;
+      inv.currentPrice = inv.currentPrice * (1 + change);
+    });
+  }
+
+  function updateAllUI() {
+    updateDashboard();
+    updateTransactionList();
+    updateBudgets();
+    updateDonutChart();
+    updateAccountList();
+    updateInvestmentList();
+  }
+
+  function updateDashboard() {
+    const total = getTotalBalance();
+    document.getElementById('totalBalance').textContent = formatMoney(total);
+    const expenses = getMonthExpenses();
+    const income = getMonthIncome();
+    document.getElementById('monthExpenses').textContent = formatMoney(expenses);
+    document.getElementById('monthIncome').textContent = formatMoney(income);
+    const diff = income - expenses;
+    document.getElementById('balanceTrend').textContent = diff >= 0 ? `+ Ahorro este mes: ${formatMoney(diff)}` : `- Déficit: ${formatMoney(Math.abs(diff))}`;
+    document.getElementById('cashBalance').textContent = formatMoney(getCashBalance());
+    document.getElementById('bankBalance').textContent = formatMoney(getBankBalance());
+    document.getElementById('investBalance').textContent = formatMoney(getInvestBalance());
+    document.getElementById('creditDebt').textContent = formatMoney(getCreditDebt());
+    updateBudgetListDashboard();
+  }
+
+  function updateBudgetListDashboard() {
+    const container = document.getElementById('budgetListDashboard');
+    container.innerHTML = budgets.map(b => {
+      const spent = transactions.filter(t => t.type === 'expense' && t.categoryId === b.categoryId && new Date(t.date).getMonth() === new Date().getMonth())
+        .reduce((s, t) => s + t.amount, 0);
+      const percent = Math.min(100, (spent / b.amount) * 100);
+      const cat = getCategoryById(b.categoryId);
+      return `<div style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:14px;">
+          <span>${cat.icon} ${b.name}</span>
+          <span>${formatMoney(spent)} / ${formatMoney(b.amount)}</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${percent}%; background:${percent>80?'#ef4444':'#3b82f6'};"></div></div>
+      </div>`;
+    }).join('') || '<div style="color:#6b7280;">No hay presupuestos activos</div>';
+  }
+
+  function updateDonutChart() {
+    const canvas = document.getElementById('donutChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const expensesByCat = {};
+    transactions.filter(t => t.type === 'expense' && new Date(t.date).getMonth() === new Date().getMonth())
+      .forEach(t => {
+        const catId = t.categoryId;
+        expensesByCat[catId] = (expensesByCat[catId] || 0) + t.amount;
+      });
+    const total = Object.values(expensesByCat).reduce((a,b)=>a+b,0);
+    const entries = Object.entries(expensesByCat).map(([catId, amount]) => ({
+      cat: getCategoryById(parseInt(catId)),
+      amount,
+      percent: (amount/total*100).toFixed(1)
+    }));
+    entries.sort((a,b)=>b.amount-a.amount);
+    ctx.clearRect(0,0,150,150);
+    let startAngle = -Math.PI/2;
+    entries.forEach(entry => {
+      const sliceAngle = (entry.amount / total) * 2 * Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(75,75);
+      ctx.arc(75,75,60, startAngle, startAngle+sliceAngle);
+      ctx.closePath();
+      ctx.fillStyle = entry.cat.color;
+      ctx.fill();
+      startAngle += sliceAngle;
+    });
+    ctx.beginPath();
+    ctx.arc(75,75,35,0,2*Math.PI);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.fillStyle = '#1f2937';
+    ctx.font = 'bold 12px Inter';
+    ctx.textAlign = 'center';
+    ctx.fillText('Total',75,72);
+    ctx.fillText(formatMoney(total),75,90);
+    const legendDiv = document.getElementById('categoryLegend');
+    legendDiv.innerHTML = entries.slice(0,4).map(e => 
+      `<div style="display:flex; align-items:center; margin:4px 0;"><span style="width:10px;height:10px;border-radius:50%;background:${e.cat.color};display:inline-block;margin-right:8px;"></span>${e.cat.icon} ${e.cat.name} ${e.percent}%</div>`
+    ).join('');
+  }
+
+  function updateAccountList() {
+    const container = document.getElementById('accountList');
+    container.innerHTML = defaultAccounts.map(acc => {
+      let icon = '💵';
+      if (acc.type === 'checking') icon = '🏦';
+      else if (acc.type === 'savings') icon = '🐷';
+      else if (acc.type === 'credit_card') icon = '💳';
+      else if (acc.type === 'investment') icon = '📈';
+      else if (acc.type === 'cash') icon = '💵';
+      const colorBalance = acc.balance < 0 ? '#ef4444' : '#10b981';
+      return `<div class="card" onclick="alert('Detalle de cuenta: ${acc.name}')">
+        <div class="row">
+          <div style="display:flex; align-items:center;">
+            <span style="font-size:24px; margin-right:10px;">${icon}</span>
+            <div>
+              <div style="font-weight:600;">${acc.name}</div>
+              <div style="font-size:12px; color:#6b7280;">${acc.type === 'credit_card' ? 'Tarjeta de crédito' : acc.type === 'checking' ? 'Cuenta de débito' : acc.type}</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-weight:bold; color:${colorBalance};">${formatMoney(acc.balance)}</div>
+            ${acc.type === 'credit_card' ? `<div style="font-size:10px;">Límite: ${formatMoney(acc.credit_limit)}</div>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function updateInvestmentList() {
+    refreshInvestmentPrices();
+    const container = document.getElementById('investmentList');
+    container.innerHTML = investments.map(inv => {
+      const totalValue = inv.shares * inv.currentPrice;
+      const totalCost = inv.shares * inv.buyPrice;
+      const gain = totalValue - totalCost;
+      const gainPercent = totalCost > 0 ? (gain / totalCost * 100).toFixed(2) : 0;
+      const isPositive = gain >= 0;
+      return `<div class="card investment-item">
+        <div class="row">
+          <div>
+            <div style="font-weight:600;">${inv.name} <span style="font-size:12px; color:#6b7280;">(${inv.type})</span></div>
+            <div style="font-size:12px;">${inv.shares} títulos</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-weight:bold;">${formatMoney(totalValue)}</div>
+            <div class="${isPositive ? 'positive' : 'negative'}">
+              ${isPositive ? '+' : ''}${formatMoney(gain)} (${gainPercent}%)
+            </div>
+          </div>
+        </div>
+        <div class="row" style="font-size:12px; margin-top:8px;">
+          <span>Precio compra: ${formatMoney(inv.buyPrice)}</span>
+          <span>Precio actual: ${formatMoney(inv.currentPrice)}</span>
+        </div>
+      </div>`;
+    }).join('') || '<div>No hay inversiones registradas</div>';
+  }
+
+  function updateTransactionList(filter = currentFilter) {
+    const listDiv = document.getElementById('transactionList');
+    let filtered = [...transactions];
+    const now = new Date();
+    if (filter === 'today') {
+      filtered = filtered.filter(t => t.date === now.toISOString().split('T')[0]);
+    } else if (filter === 'week') {
+      const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+      filtered = filtered.filter(t => new Date(t.date) >= startOfWeek);
+    } else if (filter === 'month') {
+      filtered = filtered.filter(t => new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear());
+    }
+    filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
+    const groups = {};
+    filtered.forEach(t => {
+      const dateStr = t.date;
+      if (!groups[dateStr]) groups[dateStr] = [];
+      groups[dateStr].push(t);
+    });
+    let html = '';
+    Object.keys(groups).sort().reverse().forEach(date => {
+      const totalDay = groups[date].reduce((s,t) => t.type==='expense'? s-t.amount : (t.type==='income'? s+t.amount : s), 0);
+      html += `<div style="font-weight:600; margin:10px 0 5px;">${new Date(date+'T00:00').toLocaleDateString('es-MX',{weekday:'long', day:'numeric', month:'short'})} · <span style="color:${totalDay<0?'#ef4444':'#10b981'}">${formatMoney(totalDay)}</span></div>`;
+      groups[date].forEach(t => {
+        const cat = getCategoryById(t.categoryId || 0);
+        const accFrom = defaultAccounts.find(a=>a.id===t.accountId);
+        const accTo = defaultAccounts.find(a=>a.id===t.toAccountId);
+        let desc = t.note || cat.name;
+        let sign = '';
+        let color = '';
+        if (t.type === 'expense') {
+          sign = '-';
+          color = '#ef4444';
+        } else if (t.type === 'income') {
+          sign = '+';
+          color = '#10b981';
+        } else if (t.type === 'transfer') {
+          sign = '↔';
+          color = '#3b82f6';
+          desc = `${accFrom?.name || '?'} → ${accTo?.name || '?'}`;
+        }
+        html += `<div class="tx-row" onclick="alert('Detalle de transacción ID: ${t.id}')">
+          <div style="display:flex; align-items:center;">
+            <div class="category-dot" style="background:${cat.color || '#ccc'};">${cat.icon || '💱'}</div>
+            <div>
+              <div>${desc}</div>
+              <div style="font-size:12px; color:#6b7280;">${accFrom?.name || ''}</div>
+            </div>
+          </div>
+          <div style="font-weight:bold; color:${color}">${sign} ${formatMoney(t.amount)}</div>
+        </div>`;
+      });
+    });
+    listDiv.innerHTML = html || '<div style="color:#6b7280;">No hay transacciones</div>';
+  }
+
+  function updateBudgets() {}
+
+  function openAddModal() {
+    document.getElementById('addModal').classList.add('active');
+    resetModalType('expense');
+    document.getElementById('amountInput').value = '';
+    document.getElementById('txNote').value = '';
+    document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+    updateModalUI();
+  }
+  function closeModal() { document.getElementById('addModal').classList.remove('active'); }
+
+  function resetModalType(type) {
+    selectedType = type;
+    document.querySelectorAll('.type-chip').forEach(el => el.classList.remove('selected'));
+    document.querySelector(`.type-chip[data-type="${type}"]`).classList.add('selected');
+    if (type === 'expense' || type === 'income') {
+      selectedAccountId = defaultAccounts.find(a => a.type === 'checking')?.id || defaultAccounts[0].id;
+    } else if (type === 'transfer') {
+      selectedAccountId = defaultAccounts.find(a => a.type === 'checking')?.id || 2;
+      selectedDestAccountId = defaultAccounts.find(a => a.type === 'cash')?.id || 1;
+    }
+    selectedCategoryId = defaultCategories.find(c => c.type === (type==='transfer'?'expense':type))?.id || 1;
+  }
+
+  function updateModalUI() {
+    const isTransfer = selectedType === 'transfer';
+    document.getElementById('accountLabel').textContent = isTransfer ? 'Cuenta origen:' : 'Cuenta:';
+    document.getElementById('transferDestContainer').style.display = isTransfer ? 'block' : 'none';
+    document.getElementById('quickCategories').style.display = isTransfer ? 'none' : 'flex';
+    renderQuickCategories();
+    renderAccountChips();
+    if (isTransfer) renderDestAccountChips();
+  }
+
+  function renderQuickCategories() {
+    if (selectedType === 'transfer') return;
+    const container = document.getElementById('quickCategories');
+    const cats = defaultCategories.filter(c => c.type === selectedType);
+    container.innerHTML = cats.map(c => 
+      `<span class="chip ${c.id === selectedCategoryId ? 'selected' : ''}" onclick="selectCategory(${c.id})">${c.icon} ${c.name}</span>`
+    ).join('');
+  }
+  function selectCategory(id) {
+    selectedCategoryId = id;
+    document.querySelectorAll('#quickCategories .chip').forEach(el => el.classList.remove('selected'));
+    document.querySelector(`#quickCategories .chip[onclick="selectCategory(${id})"]`)?.classList.add('selected');
+  }
+
+  function renderAccountChips() {
+    const container = document.getElementById('accountChips');
+    const accounts = defaultAccounts.filter(a => selectedType !== 'transfer' || a.id !== selectedDestAccountId);
+    container.innerHTML = accounts.map(a =>
+      `<span class="chip ${a.id === selectedAccountId ? 'selected' : ''}" onclick="selectAccount(${a.id})">${a.name} (${formatMoney(a.balance)})</span>`
+    ).join('');
+  }
+  function selectAccount(id) {
+    selectedAccountId = id;
+    renderAccountChips();
+    if (selectedType === 'transfer') renderDestAccountChips();
+  }
+
+  function renderDestAccountChips() {
+    const container = document.getElementById('destAccountChips');
+    const accounts = defaultAccounts.filter(a => a.id !== selectedAccountId);
+    container.innerHTML = accounts.map(a =>
+      `<span class="chip ${a.id === selectedDestAccountId ? 'selected' : ''}" onclick="selectDestAccount(${a.id})">${a.name} (${formatMoney(a.balance)})</span>`
+    ).join('');
+  }
+  function selectDestAccount(id) {
+    selectedDestAccountId = id;
+    renderDestAccountChips();
+    renderAccountChips();
+  }
+
+  function saveTransaction() {
+    const amountStr = document.getElementById('amountInput').value;
+    let amount;
+    try {
+      amount = eval(amountStr.replace(/[^0-9+\-*/().]/g, ''));
+      if (isNaN(amount) || amount <= 0) throw new Error();
+    } catch { alert('Monto no válido'); return; }
+    amount = Math.abs(amount);
+    const note = document.getElementById('txNote').value;
+    const date = document.getElementById('txDate').value;
+    const accFrom = defaultAccounts.find(a => a.id === selectedAccountId);
+    if (!accFrom) { alert('Selecciona una cuenta origen'); return; }
+
+    if (selectedType === 'transfer') {
+      const accTo = defaultAccounts.find(a => a.id === selectedDestAccountId);
+      if (!accTo) { alert('Selecciona cuenta destino'); return; }
+      if (accFrom.id === accTo.id) { alert('Origen y destino no pueden ser iguales'); return; }
+      accFrom.balance -= amount;
+      accTo.balance += amount;
+      transactions.push({
+        id: Date.now(), type: 'transfer', amount,
+        categoryId: null, accountId: accFrom.id, toAccountId: accTo.id,
+        date, note: note || 'Transferencia'
+      });
+    } else {
+      if (!selectedCategoryId) { alert('Selecciona una categoría'); return; }
+      if (selectedType === 'expense') {
+        accFrom.balance -= amount;
+      } else if (selectedType === 'income') {
+        accFrom.balance += amount;
+      }
+      transactions.push({
+        id: Date.now(), type: selectedType, amount,
+        categoryId: selectedCategoryId, accountId: accFrom.id,
+        date, note
+      });
+    }
+    closeModal();
+    updateAllUI();
+  }
+
+  document.querySelectorAll('.type-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+      resetModalType(this.dataset.type);
+      updateModalUI();
+    });
+  });
+
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', function() {
+      switchTab(this.dataset.tab);
+    });
+  });
+  document.getElementById('fabAdd').addEventListener('click', openAddModal);
+
+  function switchTab(tab) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(tab).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
+    currentTab = tab;
+    if (tab === 'dashboard') updateDashboard();
+    if (tab === 'transactions') updateTransactionList();
+    if (tab === 'accounts') updateAccountList();
+    if (tab === 'investments') updateInvestmentList();
+    closeModal();
+  }
+
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('selected'));
+      this.classList.add('selected');
+      currentFilter = this.dataset.filter;
+      updateTransactionList(currentFilter);
+    });
+  });
+
+  function resetData() {
+    if (confirm('¿Reiniciar datos de ejemplo?')) {
+      defaultAccounts[0].balance = 5000;
+      defaultAccounts[1].balance = 12000;
+      defaultAccounts[2].balance = -3200;
+      defaultAccounts[3].balance = 1500;
+      defaultAccounts[4].balance = 5000;
+      investments[0].currentPrice = 175.00;
+      investments[1].currentPrice = 92.50;
+      investments[2].currentPrice = 1020.00;
+      transactions = [
+        { id: 1, type: 'expense', amount: 250, categoryId: 1, accountId: 2, date: '2026-07-24', note: 'Supermercado' },
+        { id: 2, type: 'expense', amount: 45, categoryId: 2, accountId: 1, date: '2026-07-24', note: 'Gasolina' },
+        { id: 3, type: 'income', amount: 1500, categoryId: 6, accountId: 2, date: '2026-07-15', note: 'Quincena' },
+        { id: 4, type: 'expense', amount: 320, categoryId: 4, accountId: 3, date: '2026-07-22', note: 'Cine y cena' },
+      ];
+      budgets = [
+        { id: 1, name: 'Comida', amount: 4000, categoryId: 1 },
+        { id: 2, name: 'Ocio', amount: 2000, categoryId: 4 }
+      ];
+      updateAllUI();
+      switchTab('dashboard');
+    }
+  }
+
+  updateAllUI();
+  switchTab('dashboard');
+</script>
+</body>
+</html>
