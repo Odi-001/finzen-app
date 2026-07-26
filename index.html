@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="FinZen">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
-  <style id="theme-style">
+  <style>
     :root {
       --bg: #f9fafb;
       --card-bg: #ffffff;
@@ -174,6 +174,23 @@
     .edit-btn {
       background: transparent; color: #3b82f6; font-size: 18px; cursor: pointer; padding: 4px;
     }
+    .calendar-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+    }
+    .calendar-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; gap: 5px;
+    }
+    .calendar-day {
+      padding: 8px; border-radius: 50%; cursor: pointer; position: relative;
+    }
+    .calendar-day.has-transaction::after {
+      content: ''; width: 5px; height: 5px; background: #3b82f6; border-radius: 50%;
+      position: absolute; bottom: 2px; left: 50%; margin-left: -2.5px;
+    }
+    .calendar-day.today { background: #3b82f6; color: #fff; }
+    .calendar-day.selected { background: #dbeafe; }
+    .calendar-day.credit-cut { border: 2px solid #f59e0b; }
+    .calendar-day.credit-due { border: 2px solid #ef4444; }
   </style>
 </head>
 <body>
@@ -222,9 +239,7 @@
     </div>
     <div class="card" style="text-align:center;">
       <div style="font-weight:600; margin-bottom:8px;">Gastos por categoría</div>
-      <div class="donut-container">
-        <canvas id="donutChart" width="150" height="150"></canvas>
-      </div>
+      <div class="donut-container"><canvas id="donutChart" width="150" height="150"></canvas></div>
       <div id="categoryLegend" style="font-size:12px; text-align:left; padding:0 10px;"></div>
     </div>
     <div class="card">
@@ -256,21 +271,57 @@
     <div id="investmentList"></div>
   </div>
 
+  <!-- Calendario Financiero -->
+  <div class="screen" id="calendar-screen">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <h3>📅 Calendario Financiero</h3>
+      <button class="small-btn" onclick="switchTab('more')">← Volver</button>
+    </div>
+    <div class="calendar-header">
+      <button class="small-btn" onclick="changeCalendarMonth(-1)">◀</button>
+      <span id="calendarMonthLabel" style="font-weight:bold;"></span>
+      <button class="small-btn" onclick="changeCalendarMonth(1)">▶</button>
+    </div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+    <div style="margin-top:15px;">
+      <strong>Transacciones del día: <span id="selectedDateLabel"></span></strong>
+      <div id="calendarTxList"></div>
+    </div>
+  </div>
+
+  <!-- Metas de Ahorro -->
+  <div class="screen" id="savings-goals">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <h3>🎯 Metas de Ahorro</h3>
+      <button class="small-btn" onclick="switchTab('more')">← Volver</button>
+    </div>
+    <div id="savingsGoalsList"></div>
+    <button class="btn" onclick="openAddGoalForm()">+ Nueva meta</button>
+    <div id="addGoalForm" style="display:none; margin-top:15px;" class="card">
+      <h4>Añadir meta</h4>
+      <input type="text" id="goalName" placeholder="Nombre" style="width:100%; margin:5px 0; padding:8px; border:1px solid var(--border); border-radius:8px;">
+      <input type="number" id="goalTarget" placeholder="Monto objetivo" step="0.01" style="width:100%; margin:5px 0; padding:8px; border:1px solid var(--border); border-radius:8px;">
+      <input type="number" id="goalCurrent" placeholder="Monto actual" step="0.01" style="width:100%; margin:5px 0; padding:8px; border:1px solid var(--border); border-radius:8px;">
+      <button class="btn" onclick="saveGoal()">Guardar meta</button>
+      <button class="btn" style="background:#ccc; margin-top:5px;" onclick="closeAddGoalForm()">Cancelar</button>
+    </div>
+  </div>
+
   <!-- Más -->
   <div class="screen" id="more">
     <h3 style="margin-bottom:20px;">Más opciones</h3>
     <div class="card" style="padding:5px 0;">
       <div class="tx-row" onclick="openProfileModal()"><span>👤 Mi perfil</span><span>›</span></div>
       <div class="tx-row" onclick="openCategoriesModal()"><span>🏷️ Categorías y etiquetas</span><span>›</span></div>
-      <div class="tx-row" onclick="alert('Próximamente')"><span>🎯 Metas de ahorro</span><span>›</span></div>
-      <div class="tx-row" onclick="alert('Próximamente')"><span>📅 Calendario financiero</span><span>›</span></div>
+      <div class="tx-row" onclick="switchTab('savings-goals')"><span>🎯 Metas de ahorro</span><span>›</span></div>
+      <div class="tx-row" onclick="switchTab('calendar-screen')"><span>📅 Calendario financiero</span><span>›</span></div>
       <div class="tx-row" onclick="exportCSV()"><span>📊 Exportar a CSV</span><span>›</span></div>
       <div class="tx-row" onclick="openSettingsModal()"><span>⚙️ Configuración</span><span>›</span></div>
       <div class="tx-row" onclick="resetData()"><span>🔄 Reiniciar datos demo</span><span>›</span></div>
     </div>
   </div>
 
-  <!-- Modal Añadir/Editar Transacción -->
+  <!-- Modales (Transacción, Cuenta, Perfil, Categorías, Configuración) -->
   <div class="modal" id="addModal">
     <div class="modal-content fade-in">
       <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
@@ -302,7 +353,6 @@
     </div>
   </div>
 
-  <!-- Modal Editar Cuenta -->
   <div class="modal" id="editAccountModal">
     <div class="modal-content fade-in">
       <h3>Editar cuenta</h3>
@@ -328,7 +378,6 @@
     </div>
   </div>
 
-  <!-- Modal Perfil, Categorías, Configuración (sin cambios) -->
   <div class="modal" id="profileModal">
     <div class="modal-content fade-in">
       <h3>Mi perfil</h3>
@@ -371,7 +420,6 @@
     </div>
   </div>
 
-  <!-- Navbar -->
   <div class="nav-bar">
     <div class="nav-item active" data-tab="dashboard"><span class="nav-icon">🏠</span><span>Inicio</span></div>
     <div class="nav-item" data-tab="transactions"><span class="nav-icon">📋</span><span>Transacc.</span></div>
@@ -391,6 +439,7 @@
       categories: defaultCategories,
       transactions: transactions,
       budgets: budgets,
+      savingsGoals: savingsGoals,
       userName: userName,
       baseCurrency: baseCurrency,
       darkMode: darkMode
@@ -408,6 +457,7 @@
         defaultCategories.length = 0; defaultCategories.push(...data.categories);
         transactions.length = 0; transactions.push(...data.transactions);
         budgets.length = 0; budgets.push(...data.budgets);
+        savingsGoals.length = 0; savingsGoals.push(...(data.savingsGoals || []));
         userName = data.userName || 'Usuario';
         baseCurrency = data.baseCurrency || 'MXN';
         darkMode = data.darkMode || false;
@@ -418,7 +468,6 @@
     return false;
   }
 
-  // Datos iniciales (sobrescritos si hay localStorage)
   let defaultAccounts = [
     { id: 1, name: 'Efectivo', type: 'cash', balance: 5000, currency: 'MXN' },
     { id: 2, name: 'BBVA Débito', type: 'checking', balance: 12000, currency: 'MXN' },
@@ -449,11 +498,11 @@
     { id: 1, name: 'Comida', amount: 4000, categoryId: 1 },
     { id: 2, name: 'Ocio', amount: 2000, categoryId: 4 }
   ];
+  let savingsGoals = [];
   let userName = 'Usuario';
   let baseCurrency = 'MXN';
   let darkMode = false;
 
-  // Variables de interfaz
   let currentTab = 'dashboard';
   let selectedType = 'expense';
   let selectedCategoryId = 1;
@@ -462,7 +511,10 @@
   let currentFilter = 'month';
   let editingTransactionId = null;
 
-  // ============ UTILIDADES ============
+  // Calendario
+  let calendarDate = new Date();
+  let selectedCalendarDay = null;
+
   function formatMoney(amount) {
     const abs = Math.abs(amount);
     return (amount < 0 ? '-' : '') + '$' + abs.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
@@ -474,7 +526,6 @@
     document.body.classList.toggle('dark-theme', darkMode);
   }
 
-  // Inicializar
   if (!loadData()) {
     transactions = [
       { id: 1, type: 'expense', amount: 250, categoryId: 1, accountId: 2, date: '2026-07-24', note: 'Supermercado' },
@@ -490,23 +541,22 @@
     updateDonutChart();
     updateAccountList();
     updateInvestmentList();
+    updateSavingsGoalsList();
+    updateCalendar();
     document.getElementById('userNameDisplay').textContent = userName;
     saveData();
   }
 
   // ============ DASHBOARD ============
   function updateDashboard() {
-    const total = defaultAccounts.reduce((sum, a) => {
-      if (a.type === 'credit_card') return sum + a.balance;
-      return sum + a.balance;
-    }, 0);
+    const total = defaultAccounts.reduce((sum, a) => sum + (a.type === 'credit_card' ? a.balance : a.balance), 0);
     document.getElementById('totalBalance').textContent = formatMoney(total);
     const now = new Date();
-    const monthExpenses = transactions.filter(t => t.type === 'expense' && new Date(t.date).getMonth() === now.getMonth()).reduce((s,t)=>s+t.amount,0);
-    const monthIncome = transactions.filter(t => t.type === 'income' && new Date(t.date).getMonth() === now.getMonth()).reduce((s,t)=>s+t.amount,0);
-    document.getElementById('monthExpenses').textContent = formatMoney(monthExpenses);
-    document.getElementById('monthIncome').textContent = formatMoney(monthIncome);
-    document.getElementById('balanceTrend').textContent = (monthIncome - monthExpenses) >= 0 ? `+ Ahorro: ${formatMoney(monthIncome-monthExpenses)}` : `- Déficit: ${formatMoney(Math.abs(monthIncome-monthExpenses))}`;
+    const monthExp = transactions.filter(t => t.type === 'expense' && new Date(t.date).getMonth() === now.getMonth()).reduce((s,t)=>s+t.amount,0);
+    const monthInc = transactions.filter(t => t.type === 'income' && new Date(t.date).getMonth() === now.getMonth()).reduce((s,t)=>s+t.amount,0);
+    document.getElementById('monthExpenses').textContent = formatMoney(monthExp);
+    document.getElementById('monthIncome').textContent = formatMoney(monthInc);
+    document.getElementById('balanceTrend').textContent = (monthInc - monthExp) >= 0 ? `+ Ahorro: ${formatMoney(monthInc-monthExp)}` : `- Déficit: ${formatMoney(Math.abs(monthInc-monthExp))}`;
     document.getElementById('cashBalance').textContent = formatMoney(defaultAccounts.filter(a=>a.type==='cash').reduce((s,a)=>s+a.balance,0));
     document.getElementById('bankBalance').textContent = formatMoney(defaultAccounts.filter(a=>a.type==='checking'||a.type==='savings').reduce((s,a)=>s+a.balance,0));
     document.getElementById('investBalance').textContent = formatMoney(defaultAccounts.filter(a=>a.type==='investment').reduce((s,a)=>s+a.balance,0));
@@ -520,11 +570,8 @@
       const spent = transactions.filter(t => t.type === 'expense' && t.categoryId === b.categoryId && new Date(t.date).getMonth() === new Date().getMonth()).reduce((s,t)=>s+t.amount,0);
       const percent = Math.min(100, (spent / b.amount) * 100);
       const cat = getCategoryById(b.categoryId);
-      return `<div style="margin-bottom:12px;">
-        <div class="row"><span>${cat.icon} ${b.name}</span><span>${formatMoney(spent)} / ${formatMoney(b.amount)}</span></div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${percent}%; background:${percent>80?'#ef4444':'#3b82f6'};"></div></div>
-      </div>`;
-    }).join('') || '<div style="color:var(--text-secondary);">No hay presupuestos activos</div>';
+      return `<div style="margin-bottom:12px;"><div class="row"><span>${cat.icon} ${b.name}</span><span>${formatMoney(spent)} / ${formatMoney(b.amount)}</span></div><div class="progress-bar"><div class="progress-fill" style="width:${percent}%; background:${percent>80?'#ef4444':'#3b82f6'};"></div></div></div>`;
+    }).join('') || '<div style="color:var(--text-secondary);">No hay presupuestos</div>';
   }
 
   function updateDonutChart() {
@@ -537,11 +584,8 @@
     });
     const total = Object.values(expensesByCat).reduce((a,b)=>a+b,0) || 0;
     const entries = Object.entries(expensesByCat).map(([catId, amount]) => ({
-      cat: getCategoryById(parseInt(catId)),
-      amount,
-      percent: total ? (amount/total*100).toFixed(1) : 0
-    }));
-    entries.sort((a,b)=>b.amount-a.amount);
+      cat: getCategoryById(parseInt(catId)), amount, percent: total ? (amount/total*100).toFixed(1) : 0
+    })).sort((a,b)=>b.amount-a.amount);
     ctx.clearRect(0,0,150,150);
     let startAngle = -Math.PI/2;
     entries.forEach(entry => {
@@ -553,32 +597,109 @@
     ctx.beginPath(); ctx.arc(75,75,35,0,2*Math.PI); ctx.fillStyle = '#fff'; ctx.fill();
     ctx.fillStyle = '#1f2937'; ctx.font = 'bold 12px Inter'; ctx.textAlign = 'center';
     ctx.fillText('Total',75,72); ctx.fillText(formatMoney(total),75,90);
-    document.getElementById('categoryLegend').innerHTML = entries.slice(0,4).map(e => 
-      `<div style="display:flex; align-items:center; margin:4px 0;"><span style="width:10px;height:10px;border-radius:50%;background:${e.cat.color};display:inline-block;margin-right:8px;"></span>${e.cat.icon} ${e.cat.name} ${e.percent}%</div>`
-    ).join('');
+    document.getElementById('categoryLegend').innerHTML = entries.slice(0,4).map(e => `<div style="display:flex; align-items:center; margin:4px 0;"><span style="width:10px;height:10px;border-radius:50%;background:${e.cat.color};display:inline-block;margin-right:8px;"></span>${e.cat.icon} ${e.cat.name} ${e.percent}%</div>`).join('');
   }
 
-  // ============ CUENTAS (con edición) ============
+  // ============ CALENDARIO FINANCIERO ============
+  function updateCalendar() {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    document.getElementById('calendarMonthLabel').textContent = new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' }).format(calendarDate);
+    const grid = document.getElementById('calendarGrid');
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    // Días de la semana
+    const weekDays = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
+    grid.innerHTML = weekDays.map(d => `<div style="font-weight:bold; font-size:12px;">${d}</div>`).join('');
+    // Espacios vacíos
+    for (let i = 0; i < firstDay; i++) {
+      grid.innerHTML += '<div></div>';
+    }
+    const today = new Date();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const hasTx = transactions.some(t => t.date === dateStr);
+      const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+      const selected = selectedCalendarDay === dateStr;
+      // Fechas de corte/pago de tarjetas
+      let creditCut = false, creditDue = false;
+      defaultAccounts.forEach(acc => {
+        if (acc.type === 'credit_card') {
+          if (acc.cut_date === day) creditCut = true;
+          if (acc.due_date === day) creditDue = true;
+        }
+      });
+      let classes = 'calendar-day';
+      if (hasTx) classes += ' has-transaction';
+      if (isToday) classes += ' today';
+      if (selected) classes += ' selected';
+      if (creditCut) classes += ' credit-cut';
+      if (creditDue) classes += ' credit-due';
+      grid.innerHTML += `<div class="${classes}" onclick="selectCalendarDay('${dateStr}')">${day}</div>`;
+    }
+    if (selectedCalendarDay) {
+      document.getElementById('selectedDateLabel').textContent = new Date(selectedCalendarDay+'T00:00').toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long'});
+      const dayTxs = transactions.filter(t => t.date === selectedCalendarDay);
+      const txList = document.getElementById('calendarTxList');
+      txList.innerHTML = dayTxs.map(t => {
+        const cat = getCategoryById(t.categoryId||0);
+        const acc = defaultAccounts.find(a=>a.id===t.accountId);
+        return `<div class="tx-row" onclick="openEditTransaction(${t.id})"><span>${cat.icon} ${t.note||cat.name}</span><span style="color:${t.type==='expense'?'#ef4444':'#10b981'}">${t.type==='expense'?'-':'+'}${formatMoney(t.amount)}</span></div>`;
+      }).join('') || '<div style="color:var(--text-secondary);">Sin movimientos</div>';
+    }
+  }
+  function changeCalendarMonth(delta) {
+    calendarDate.setMonth(calendarDate.getMonth() + delta);
+    updateCalendar();
+  }
+  function selectCalendarDay(dateStr) {
+    selectedCalendarDay = dateStr;
+    updateCalendar();
+  }
+
+  // ============ METAS DE AHORRO ============
+  function updateSavingsGoalsList() {
+    const container = document.getElementById('savingsGoalsList');
+    container.innerHTML = savingsGoals.map(g => {
+      const percent = g.target > 0 ? Math.min(100, (g.current / g.target) * 100) : 0;
+      return `<div class="card">
+        <div class="row"><strong>🎯 ${g.name}</strong><span>${formatMoney(g.current)} / ${formatMoney(g.target)}</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${percent}%; background:#10b981;"></div></div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-top:4px;">
+          <span>${percent.toFixed(0)}% completado</span>
+          <button class="small-btn" onclick="deleteGoal(${g.id})">Eliminar</button>
+        </div>
+      </div>`;
+    }).join('') || '<div>No hay metas de ahorro</div>';
+  }
+  function openAddGoalForm() {
+    document.getElementById('addGoalForm').style.display = 'block';
+    document.getElementById('goalName').value = '';
+    document.getElementById('goalTarget').value = '';
+    document.getElementById('goalCurrent').value = '';
+  }
+  function closeAddGoalForm() { document.getElementById('addGoalForm').style.display = 'none'; }
+  function saveGoal() {
+    const name = document.getElementById('goalName').value.trim();
+    const target = parseFloat(document.getElementById('goalTarget').value);
+    const current = parseFloat(document.getElementById('goalCurrent').value) || 0;
+    if (!name || isNaN(target) || target <= 0) return alert('Datos inválidos');
+    savingsGoals.push({ id: Date.now(), name, target, current });
+    closeAddGoalForm();
+    updateAllUI();
+  }
+  function deleteGoal(id) {
+    if (!confirm('¿Eliminar meta?')) return;
+    savingsGoals = savingsGoals.filter(g => g.id !== id);
+    updateAllUI();
+  }
+
+  // ============ CUENTAS, INVERSIONES, TRANSACCIONES (igual que antes) ============
   function updateAccountList() {
     const container = document.getElementById('accountList');
     container.innerHTML = defaultAccounts.map(acc => {
       let icon = acc.type === 'checking' ? '🏦' : acc.type === 'savings' ? '🐷' : acc.type === 'credit_card' ? '💳' : acc.type === 'investment' ? '📈' : '💵';
-      return `<div class="card">
-        <div class="row">
-          <div style="display:flex; align-items:center;">
-            <span style="font-size:24px; margin-right:10px;">${icon}</span>
-            <div>
-              <strong>${acc.name}</strong>
-              <div style="font-size:12px; color:var(--text-secondary);">${acc.type === 'credit_card' ? 'Crédito' : acc.type}</div>
-            </div>
-          </div>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <strong style="color:${acc.balance<0?'#ef4444':'#10b981'}">${formatMoney(acc.balance)}</strong>
-            <span class="edit-btn" onclick="openEditAccount(${acc.id})">✏️</span>
-          </div>
-        </div>
-        ${acc.type === 'credit_card' ? `<div style="font-size:10px; margin-top:4px;">Límite: ${formatMoney(acc.credit_limit)}</div>` : ''}
-      </div>`;
+      return `<div class="card"><div class="row"><div style="display:flex; align-items:center;"><span style="font-size:24px; margin-right:10px;">${icon}</span><div><strong>${acc.name}</strong><div style="font-size:12px; color:var(--text-secondary);">${acc.type}</div></div></div><div style="display:flex; align-items:center; gap:8px;"><strong style="color:${acc.balance<0?'#ef4444':'#10b981'}">${formatMoney(acc.balance)}</strong><span class="edit-btn" onclick="openEditAccount(${acc.id})">✏️</span></div></div>${acc.type==='credit_card'?`<div style="font-size:10px;">Límite: ${formatMoney(acc.credit_limit)}</div>`:''}</div>`;
     }).join('');
   }
 
@@ -590,9 +711,7 @@
     document.getElementById('editAccType').value = acc.type;
     document.getElementById('editAccBalance').value = acc.balance;
     document.getElementById('editAccCreditLimit').style.display = acc.type === 'credit_card' ? 'block' : 'none';
-    if (acc.type === 'credit_card') {
-      document.getElementById('editAccLimit').value = acc.credit_limit || 0;
-    }
+    if (acc.type === 'credit_card') document.getElementById('editAccLimit').value = acc.credit_limit || 0;
     document.getElementById('editAccountModal').classList.add('active');
     document.getElementById('editAccType').onchange = function() {
       document.getElementById('editAccCreditLimit').style.display = this.value === 'credit_card' ? 'block' : 'none';
@@ -606,16 +725,12 @@
     acc.name = document.getElementById('editAccName').value;
     acc.type = document.getElementById('editAccType').value;
     acc.balance = parseFloat(document.getElementById('editAccBalance').value) || 0;
-    if (acc.type === 'credit_card') {
-      acc.credit_limit = parseFloat(document.getElementById('editAccLimit').value) || 0;
-    } else {
-      delete acc.credit_limit;
-    }
+    if (acc.type === 'credit_card') acc.credit_limit = parseFloat(document.getElementById('editAccLimit').value) || 0;
+    else delete acc.credit_limit;
     closeEditAccountModal();
     updateAllUI();
   }
 
-  // ============ INVERSIONES ============
   function updateInvestmentList() {
     const container = document.getElementById('investmentList');
     container.innerHTML = investments.map(inv => {
@@ -623,11 +738,7 @@
       const cost = inv.shares * inv.buyPrice;
       const gain = total - cost;
       const percent = cost > 0 ? (gain/cost*100).toFixed(2) : 0;
-      return `<div class="card investment-item">
-        <div class="row"><strong>${inv.name}</strong> <span class="${gain>=0?'positive':'negative'}">${gain>=0?'+':''}${formatMoney(gain)} (${percent}%)</span></div>
-        <div>${inv.shares} títulos · Compra: ${formatMoney(inv.buyPrice)} · Actual: ${formatMoney(inv.currentPrice)}</div>
-        <button class="small-btn" style="margin-top:8px;" onclick="editInvestment(${inv.id})">Editar</button>
-      </div>`;
+      return `<div class="card investment-item"><div class="row"><strong>${inv.name}</strong><span class="${gain>=0?'positive':'negative'}">${gain>=0?'+':''}${formatMoney(gain)} (${percent}%)</span></div><div>${inv.shares} títulos · Compra: ${formatMoney(inv.buyPrice)} · Actual: ${formatMoney(inv.currentPrice)}</div><button class="small-btn" style="margin-top:8px;" onclick="editInvestment(${inv.id})">Editar</button></div>`;
     }).join('') || '<div>No hay inversiones</div>';
   }
 
@@ -642,7 +753,6 @@
     updateAllUI();
   }
 
-  // ============ TRANSACCIONES (editar al tocar) ============
   function updateTransactionList(filter = currentFilter) {
     const listDiv = document.getElementById('transactionList');
     let filtered = [...transactions];
@@ -665,17 +775,11 @@
         const cat = getCategoryById(t.categoryId || 0);
         const accFrom = defaultAccounts.find(a=>a.id===t.accountId);
         let desc = t.note || cat.name;
-        let sign = ''; let color = '';
+        let sign, color;
         if (t.type === 'expense') { sign = '-'; color = '#ef4444'; }
         else if (t.type === 'income') { sign = '+'; color = '#10b981'; }
         else { sign = '↔'; color = '#3b82f6'; desc = `${accFrom?.name||'?'} → ${defaultAccounts.find(a=>a.id===t.toAccountId)?.name||'?'}`; }
-        html += `<div class="tx-row" onclick="openEditTransaction(${t.id})">
-          <div style="display:flex; align-items:center;">
-            <div class="category-dot" style="background:${cat.color||'#ccc'};">${cat.icon||'💱'}</div>
-            <div><div>${desc}</div><div style="font-size:12px; color:var(--text-secondary);">${accFrom?.name||''}</div></div>
-          </div>
-          <div style="font-weight:bold; color:${color}">${sign} ${formatMoney(t.amount)}</div>
-        </div>`;
+        html += `<div class="tx-row" onclick="openEditTransaction(${t.id})"><div style="display:flex; align-items:center;"><div class="category-dot" style="background:${cat.color||'#ccc'};">${cat.icon||'💱'}</div><div><div>${desc}</div><div style="font-size:12px; color:var(--text-secondary);">${accFrom?.name||''}</div></div></div><div style="font-weight:bold; color:${color}">${sign} ${formatMoney(t.amount)}</div></div>`;
       });
     });
     listDiv.innerHTML = html || '<div style="color:var(--text-secondary);">No hay transacciones</div>';
@@ -732,21 +836,16 @@
     document.getElementById('addModal').classList.add('active');
   }
   function closeModal() { document.getElementById('addModal').classList.remove('active'); }
-
   function resetModalType(type) {
     selectedType = type;
     document.querySelectorAll('.type-chip').forEach(el => el.classList.remove('selected'));
     document.querySelector(`.type-chip[data-type="${type}"]`).classList.add('selected');
     if (!editingTransactionId) {
       if (type === 'expense' || type === 'income') selectedAccountId = defaultAccounts.find(a => a.type === 'checking')?.id || defaultAccounts[0].id;
-      else if (type === 'transfer') {
-        selectedAccountId = defaultAccounts.find(a => a.type === 'checking')?.id || 2;
-        selectedDestAccountId = defaultAccounts.find(a => a.type === 'cash')?.id || 1;
-      }
+      else if (type === 'transfer') { selectedAccountId = defaultAccounts.find(a => a.type === 'checking')?.id || 2; selectedDestAccountId = defaultAccounts.find(a => a.type === 'cash')?.id || 1; }
       selectedCategoryId = defaultCategories.find(c => c.type === (type==='transfer'?'expense':type))?.id || 1;
     }
   }
-
   function updateModalUI() {
     const isTransfer = selectedType === 'transfer';
     document.getElementById('accountLabel').textContent = isTransfer ? 'Origen:' : 'Cuenta:';
@@ -755,24 +854,17 @@
     renderQuickCategories(); renderAccountChips();
     if (isTransfer) renderDestAccountChips();
   }
-
   function renderQuickCategories() {
     if (selectedType === 'transfer') return;
-    document.getElementById('quickCategories').innerHTML = defaultCategories.filter(c => c.type === selectedType).map(c => 
-      `<span class="chip ${c.id === selectedCategoryId ? 'selected' : ''}" onclick="selectCategory(${c.id})">${c.icon} ${c.name}</span>`
-    ).join('');
+    document.getElementById('quickCategories').innerHTML = defaultCategories.filter(c => c.type === selectedType).map(c => `<span class="chip ${c.id === selectedCategoryId ? 'selected' : ''}" onclick="selectCategory(${c.id})">${c.icon} ${c.name}</span>`).join('');
   }
   function selectCategory(id) { selectedCategoryId = id; renderQuickCategories(); }
   function renderAccountChips() {
-    document.getElementById('accountChips').innerHTML = defaultAccounts.filter(a => selectedType !== 'transfer' || a.id !== selectedDestAccountId).map(a => 
-      `<span class="chip ${a.id === selectedAccountId ? 'selected' : ''}" onclick="selectAccount(${a.id})">${a.name} (${formatMoney(a.balance)})</span>`
-    ).join('');
+    document.getElementById('accountChips').innerHTML = defaultAccounts.filter(a => selectedType !== 'transfer' || a.id !== selectedDestAccountId).map(a => `<span class="chip ${a.id === selectedAccountId ? 'selected' : ''}" onclick="selectAccount(${a.id})">${a.name} (${formatMoney(a.balance)})</span>`).join('');
   }
   function selectAccount(id) { selectedAccountId = id; renderAccountChips(); if (selectedType === 'transfer') renderDestAccountChips(); }
   function renderDestAccountChips() {
-    document.getElementById('destAccountChips').innerHTML = defaultAccounts.filter(a => a.id !== selectedAccountId).map(a => 
-      `<span class="chip ${a.id === selectedDestAccountId ? 'selected' : ''}" onclick="selectDestAccount(${a.id})">${a.name} (${formatMoney(a.balance)})</span>`
-    ).join('');
+    document.getElementById('destAccountChips').innerHTML = defaultAccounts.filter(a => a.id !== selectedAccountId).map(a => `<span class="chip ${a.id === selectedDestAccountId ? 'selected' : ''}" onclick="selectDestAccount(${a.id})">${a.name} (${formatMoney(a.balance)})</span>`).join('');
   }
   function selectDestAccount(id) { selectedDestAccountId = id; renderDestAccountChips(); renderAccountChips(); }
 
@@ -782,61 +874,33 @@
     const note = document.getElementById('txNote').value;
     const date = document.getElementById('txDate').value;
     const isEdit = !!editingTransactionId;
-
     if (isEdit) {
       const tx = transactions.find(t => t.id === editingTransactionId);
-      // revertir saldo anterior
       const oldAccFrom = defaultAccounts.find(a => a.id === tx.accountId);
       if (oldAccFrom) {
         if (tx.type === 'expense') oldAccFrom.balance += tx.amount;
         else if (tx.type === 'income') oldAccFrom.balance -= tx.amount;
-        else if (tx.type === 'transfer') {
-          oldAccFrom.balance += tx.amount;
-          const oldAccTo = defaultAccounts.find(a => a.id === tx.toAccountId);
-          if (oldAccTo) oldAccTo.balance -= tx.amount;
-        }
+        else if (tx.type === 'transfer') { oldAccFrom.balance += tx.amount; const oa = defaultAccounts.find(a=>a.id===tx.toAccountId); if(oa) oa.balance -= tx.amount; }
       }
-      // actualizar datos
-      tx.type = selectedType;
-      tx.amount = amount;
-      tx.categoryId = selectedType === 'transfer' ? null : selectedCategoryId;
-      tx.accountId = selectedAccountId;
+      tx.type = selectedType; tx.amount = amount; tx.categoryId = selectedType === 'transfer' ? null : selectedCategoryId; tx.accountId = selectedAccountId;
       if (selectedType === 'transfer') tx.toAccountId = selectedDestAccountId; else delete tx.toAccountId;
-      tx.date = date;
-      tx.note = note;
+      tx.date = date; tx.note = note;
     } else {
-      transactions.push({
-        id: Date.now(), type: selectedType, amount,
-        categoryId: selectedType !== 'transfer' ? selectedCategoryId : null,
-        accountId: selectedAccountId,
-        toAccountId: selectedType === 'transfer' ? selectedDestAccountId : undefined,
-        date, note
-      });
+      transactions.push({ id: Date.now(), type: selectedType, amount, categoryId: selectedType !== 'transfer' ? selectedCategoryId : null, accountId: selectedAccountId, toAccountId: selectedType === 'transfer' ? selectedDestAccountId : undefined, date, note });
     }
-
-    // aplicar nuevos saldos
     const accFrom = defaultAccounts.find(a => a.id === selectedAccountId);
     if (selectedType === 'expense') accFrom.balance -= amount;
     else if (selectedType === 'income') accFrom.balance += amount;
-    else if (selectedType === 'transfer') {
-      accFrom.balance -= amount;
-      const accTo = defaultAccounts.find(a => a.id === selectedDestAccountId);
-      if (accTo) accTo.balance += amount;
-    }
-
+    else if (selectedType === 'transfer') { accFrom.balance -= amount; const accTo = defaultAccounts.find(a=>a.id===selectedDestAccountId); if(accTo) accTo.balance += amount; }
     editingTransactionId = null;
     closeModal();
     updateAllUI();
   }
 
   document.querySelectorAll('.type-chip').forEach(chip => {
-    chip.addEventListener('click', function() {
-      resetModalType(this.dataset.type);
-      updateModalUI();
-    });
+    chip.addEventListener('click', function() { resetModalType(this.dataset.type); updateModalUI(); });
   });
 
-  // Perfil, categorías, configuración (mismo código de antes, sin cambios)
   function openProfileModal() {
     document.getElementById('profileName').value = userName;
     document.getElementById('profileCurrency').value = baseCurrency;
@@ -849,28 +913,15 @@
     closeProfileModal();
     updateAllUI();
   }
-
-  function openCategoriesModal() {
-    renderCategoriesList();
-    document.getElementById('categoriesModal').classList.add('active');
-  }
+  function openCategoriesModal() { renderCategoriesList(); document.getElementById('categoriesModal').classList.add('active'); }
   function closeCategoriesModal() { document.getElementById('categoriesModal').classList.remove('active'); }
   function renderCategoriesList() {
-    document.getElementById('categoriesList').innerHTML = defaultCategories.map(c => `
-      <div class="row" style="margin:5px 0;">
-        <span>${c.icon} ${c.name} (${c.type})</span>
-        <div>
-          <button class="small-btn" onclick="editCategory(${c.id})">✏️</button>
-          <button class="small-btn" style="background:#ef4444;" onclick="deleteCategory(${c.id})">🗑️</button>
-        </div>
-      </div>
-    `).join('');
+    document.getElementById('categoriesList').innerHTML = defaultCategories.map(c => `<div class="row" style="margin:5px 0;"><span>${c.icon} ${c.name} (${c.type})</span><div><button class="small-btn" onclick="editCategory(${c.id})">✏️</button><button class="small-btn" style="background:#ef4444;" onclick="deleteCategory(${c.id})">🗑️</button></div></div>`).join('');
   }
   function addCategory() {
     const name = document.getElementById('newCatName').value.trim();
     if (!name) return alert('Nombre requerido');
-    const type = document.getElementById('newCatType').value;
-    defaultCategories.push({ id: Date.now(), name, type, color: type==='expense'?'#ef4444':'#10b981', icon: '📌' });
+    defaultCategories.push({ id: Date.now(), name, type: document.getElementById('newCatType').value, color: '#3b82f6', icon: '📌' });
     renderCategoriesList();
     document.getElementById('newCatName').value = '';
     saveData();
@@ -880,31 +931,22 @@
     if (!cat) return;
     const name = prompt('Nombre:', cat.name); if (name) cat.name = name;
     const icon = prompt('Icono:', cat.icon); if (icon) cat.icon = icon;
-    renderCategoriesList();
-    saveData();
+    renderCategoriesList(); saveData();
   }
   function deleteCategory(id) {
     if (!confirm('¿Eliminar categoría?')) return;
     defaultCategories = defaultCategories.filter(c => c.id !== id);
-    renderCategoriesList();
-    saveData();
+    renderCategoriesList(); saveData();
   }
-
   function exportCSV() {
     let csv = 'Fecha,Tipo,Monto,Categoría,Cuenta,Nota\n';
-    transactions.forEach(t => {
-      const cat = getCategoryById(t.categoryId||0);
-      csv += `${t.date},${t.type},${t.amount},${cat.name},${defaultAccounts.find(a=>a.id===t.accountId)?.name||''},${t.note||''}\n`;
-    });
-    const blob = new Blob([csv], {type: 'text/csv'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'finzen.csv'; a.click();
+    transactions.forEach(t => { const cat = getCategoryById(t.categoryId||0); csv += `${t.date},${t.type},${t.amount},${cat.name},${defaultAccounts.find(a=>a.id===t.accountId)?.name||''},${t.note||''}\n`; });
+    const blob = new Blob([csv], {type: 'text/csv'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'finzen.csv'; a.click();
   }
-
   function openSettingsModal() { document.getElementById('settingsModal').classList.add('active'); }
   function closeSettingsModal() { document.getElementById('settingsModal').classList.remove('active'); }
   function toggleDarkMode() { darkMode = !darkMode; applyDarkMode(); saveData(); }
 
-  // Navegación
   document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', function() { switchTab(this.dataset.tab); });
   });
@@ -914,7 +956,12 @@
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(tab).classList.add('active');
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
+    const navItem = document.querySelector(`.nav-item[data-tab="${tab}"]`);
+    if (navItem) navItem.classList.add('active');
+    else {
+      // Si no es una pestaña principal (ej. calendar-screen, savings-goals), mantener 'more' activo
+      document.querySelector('.nav-item[data-tab="more"]').classList.add('active');
+    }
     currentTab = tab;
     updateAllUI();
     closeModal();
